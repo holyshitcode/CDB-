@@ -5,6 +5,7 @@
 #define MAX 100
 #define MAX_SCHEMES 50
 #define MAX_COLUMNS 10
+#define FILE_NAME "schemes.txt"
 
 typedef struct columns {
     char name[MAX_COLUMNS][50];
@@ -28,7 +29,7 @@ typedef struct db {
 
 db dbs;
 
-void readTable(scheme *s) {
+void readTable(const scheme *s) {
     if (s == NULL || s->table == NULL || s->table->rowCount == 0) {
         printf("Table is empty or not initialized.\n");
         return;
@@ -53,6 +54,32 @@ void readTable(scheme *s) {
         printf("|\n");
     }
     printf("+------------------------------------------------+\n");
+}
+void writeTable(FILE *fp, const scheme *s) {
+    if (s == NULL || s->table == NULL || s->table->rowCount == 0) {
+        fprintf(fp,"Table is empty or not initialized.\n");
+        return;
+    }
+
+    fprintf(fp,"Reading table data for scheme: %s\n", s->name);
+    fprintf(fp,"+------------------------------------------------+\n");
+    fprintf(fp,"|                  %s                    |\n", s->name);
+    fprintf(fp,"+------------------------------------------------+\n");
+
+    for (int j = 0; j < MAX_COLUMNS && s->table->columns->name[j][0] != '\0'; j++) {
+        printf("| %-15s ", s->table->columns->name[j]);
+    }
+    fprintf(fp,"|\n");
+    fprintf(fp,"+------------------------------------------------+\n");
+
+    for (int i = 0; i < s->table->rowCount; i++) {
+        fprintf(fp,"| ");
+        for (int j = 0; j < MAX_COLUMNS && s->table->columns->contents[j][i] != NULL; j++) {
+            fprintf(fp,"%-15s ", s->table->columns->contents[j][i]);
+        }
+        fprintf(fp,"|\n");
+    }
+    fprintf(fp,"+------------------------------------------------+\n");
 }
 
 void makeTable(scheme *s) {
@@ -107,7 +134,7 @@ void makeTable(scheme *s) {
     printf("Table creation completed with %d rows.\n", s->table->rowCount);
 }
 
-void makeScheme(char *name) {
+void makeScheme(const char *name) {
     if (dbs.schemeCount >= MAX_SCHEMES) {
         printf("Maximum number of schemes reached.\n");
         return;
@@ -121,7 +148,7 @@ void makeScheme(char *name) {
     dbs.schemeCount++;
 }
 
-scheme *findScheme(char *name) {
+scheme *findScheme(const char *name) {
     for (int i = 0; i < dbs.schemeCount; i++) {
         if (strcmp(dbs.schemes[i]->name, name) == 0) {
             return dbs.schemes[i];
@@ -181,19 +208,21 @@ void freeMemory() {
 
 void showMenu() {
     printf("+------------------------------------------------+\n");
-    printf("|                   DBMS Menu                    |\n");
+    printf("|                   EASY DBMS                    |\n");
     printf("+------------------------------------------------+\n");
-    printf("| 1. Create Scheme                                |\n");
-    printf("| 2. Create Table                                 |\n");
-    printf("| 3. Read Table                                   |\n");
-    printf("| 4. Delete Scheme                                |\n");
-    printf("| 5. Exit                                         |\n");
+    printf("| 1. Create Scheme                               |\n");
+    printf("| 2. Create Table                                |\n");
+    printf("| 3. Read Table                                  |\n");
+    printf("| 4. Delete Scheme                               |\n");
+    printf("| 5. Save                                        |\n");
+    printf("| 6. Exit                                        |\n");
     printf("+------------------------------------------------+\n");
 }
 
 int main(void) {
     int choice;
     char schemeName[50];
+    FILE *file = fopen(FILE_NAME, "a");
 
     while (1) {
         showMenu();
@@ -235,8 +264,13 @@ int main(void) {
                 scanf("%s", schemeName);
                 deleteScheme(schemeName);
                 break;
-
             case 5:
+                printf("Enter scheme name to save table: ");
+                scanf("%s", schemeName);
+                scheme *sWrite = findScheme(schemeName);
+                writeTable(file, sWrite);
+                break;
+            case 6:
                 freeMemory();
                 printf("Exiting...\n");
                 return 0;
@@ -246,5 +280,4 @@ int main(void) {
         }
     }
 
-    return 0;
 }
