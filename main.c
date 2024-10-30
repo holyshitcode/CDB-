@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAX 100
 #define MAX_SCHEMES 50
@@ -67,7 +68,7 @@ void writeTable(FILE *fp, const scheme *s) {
     fprintf(fp,"+------------------------------------------------+\n");
 
     for (int j = 0; j < MAX_COLUMNS && s->table->columns->name[j][0] != '\0'; j++) {
-        printf("| %-15s ", s->table->columns->name[j]);
+        fprintf(fp,"| %-15s ", s->table->columns->name[j]);
     }
     fprintf(fp,"|\n");
     fprintf(fp,"+------------------------------------------------+\n");
@@ -160,7 +161,6 @@ scheme *findScheme(const char *name) {
 void deleteScheme(char *name) {
     for (int i = 0; i < dbs.schemeCount; i++) {
         if (strcmp(dbs.schemes[i]->name, name) == 0) {
-            // 메모리 해제
             free(dbs.schemes[i]->name);
             if (dbs.schemes[i]->table != NULL) {
                 for (int j = 0; j < dbs.schemes[i]->table->rowCount; j++) {
@@ -175,7 +175,6 @@ void deleteScheme(char *name) {
             }
             free(dbs.schemes[i]);
 
-            // 스키마 배열에서 제거
             for (int j = i; j < dbs.schemeCount - 1; j++) {
                 dbs.schemes[j] = dbs.schemes[j + 1];
             }
@@ -216,14 +215,90 @@ void showMenu() {
     printf("| 4. Delete Scheme                               |\n");
     printf("| 5. Save                                        |\n");
     printf("| 6. Exit                                        |\n");
+    printf("| 7. Load Previous Schemes                       |\n");
+    printf("| 8. Show Current Schemes                        |\n");
     printf("+------------------------------------------------+\n");
+}
+
+void loadSchemes() {
+    char *fileName = malloc(100*sizeof(char));
+    FILE *fp = NULL;
+    printf("Enter Scheme filename:");
+    scanf("%s", fileName);
+    getchar();
+    if(access(fileName,R_OK) == 0) {
+        printf("file exists");
+        fp = fopen(fileName, "r");
+    }else {
+        printf("file not exists. Running default file");
+        fp = fopen(FILE_NAME, "r");
+    }
+
+
+    if (fp == NULL) {
+        printf("Failed to open the file.\n");
+        return;
+    }
+
+    char line[256];
+    scheme *currentScheme = NULL;
+    int rowIndex = 0;
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        if (strncmp(line, "Reading table data for scheme:", 30) == 0) {
+            if (currentScheme != NULL) {
+                dbs.schemes[dbs.schemeCount++] = currentScheme;
+            }
+
+            char schemeName[50];
+            sscanf(line, "Reading table data for scheme: %s", schemeName);
+            currentScheme = malloc(sizeof(scheme));
+            currentScheme->name = strdup(schemeName);
+            currentScheme->table = malloc(sizeof(table));
+            currentScheme->table->columns = malloc(sizeof(columns));
+            currentScheme->table->rowCount = 0;
+            rowIndex = 0;
+        } else if (currentScheme && strstr(line, "|") != NULL) {
+            if (strstr(line, "Column") != NULL) {
+                int colIndex = 0;
+                char *token = strtok(line, "|");
+                while (token != NULL && colIndex < MAX_COLUMNS) {
+                    sscanf(token, " %49s", currentScheme->table->columns->name[colIndex]);
+                    token = strtok(NULL, "|");
+                    colIndex++;
+                }
+            } else {
+                int colIndex = 0;
+                char *token = strtok(line, "|");
+                while (token != NULL && colIndex < MAX_COLUMNS) {
+                    char value[50];
+                    sscanf(token, " %49s", value);
+                    currentScheme->table->columns->contents[colIndex][rowIndex] = strdup(value);
+                    token = strtok(NULL, "|");
+                    colIndex++;
+                }
+                rowIndex++;
+                currentScheme->table->rowCount++;
+            }
+        }
+    }
+
+    if (currentScheme != NULL) {
+        dbs.schemes[dbs.schemeCount++] = currentScheme;
+    }
+    fclose(fp);
+    free(fileName);
+}
+void showCurrentSchemes() {
+    for (int i = 0; i < dbs.schemeCount; i++) {
+        printf("Scheme: %s\n", dbs.schemes[i]->name);
+    }
 }
 
 int main(void) {
     int choice;
     char schemeName[50];
     FILE *file = fopen(FILE_NAME, "a");
-
     while (1) {
         showMenu();
         printf("Select an option: ");
@@ -269,11 +344,20 @@ int main(void) {
                 scanf("%s", schemeName);
                 scheme *sWrite = findScheme(schemeName);
                 writeTable(file, sWrite);
+                printf("saved scheme '%s' to: %s\n", schemeName, schemeName);
                 break;
             case 6:
                 freeMemory();
                 printf("Exiting...\n");
+                fclose(file);
                 return 0;
+            case 7:
+                loadSchemes();
+                printf("Load schemes done.\n");
+                break;
+            case 8:
+                showCurrentSchemes();
+                break;
 
             default:
                 printf("Invalid option, please try again.\n");
