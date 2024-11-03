@@ -7,6 +7,7 @@
 #define MAX_SCHEMES 50
 #define MAX_COLUMNS 10
 #define FILE_NAME "schemes.txt"
+#define MAX_LENGTH 100
 
 typedef struct columns {
     char name[MAX_COLUMNS][50];
@@ -112,24 +113,36 @@ void makeTable(scheme *s) {
         }
 
         printf("Row %d: \n", s->table->rowCount + 1);
-        int endInput = 0;
-        for (int j = 0; j < colCount; j++) {
-            s->table->columns->contents[j][s->table->rowCount] = malloc(sizeof(char) * 100);
-            printf("Column %s: ", s->table->columns->name[j]);
-            scanf("%s", s->table->columns->contents[j][s->table->rowCount]);
+        char input[MAX_LENGTH];
 
-            if (strcmp(s->table->columns->contents[j][s->table->rowCount], "end") == 0) {
-                endInput = 1;
-                free(s->table->columns->contents[j][s->table->rowCount]);
-                s->table->columns->contents[j][s->table->rowCount] = NULL;
-            }
-        }
+        printf("Enter values for the columns separated by commas (e.g., value1,value2,...): ");
+        scanf(" %[^\n]", input);
 
-        if (endInput) {
+        if (strcmp(input, "end") == 0) {
             break;
         }
 
-        s->table->rowCount++;
+
+        char *token = strtok(input, ",");
+        int j = 0;
+
+        while (token != NULL && j < colCount) {
+            s->table->columns->contents[j][s->table->rowCount] = malloc(sizeof(char) * 100);
+            strncpy(s->table->columns->contents[j][s->table->rowCount], token, 100);
+            token = strtok(NULL, ",");
+            j++;
+        }
+
+
+        if (j < colCount) {
+            printf("Not enough values provided for all columns. Expected %d but got %d.\n", colCount, j);
+
+            for (int k = 0; k < j; k++) {
+                free(s->table->columns->contents[k][s->table->rowCount]);
+            }
+        } else {
+            s->table->rowCount++;
+        }
     }
 
     printf("Table creation completed with %d rows.\n", s->table->rowCount);
@@ -221,30 +234,36 @@ void showMenu() {
 }
 
 void loadSchemes() {
-    char *fileName = malloc(100*sizeof(char));
+    char *fileName = malloc(MAX_LENGTH * sizeof(char));
     FILE *fp = NULL;
-    printf("Enter Scheme filename:");
+    printf("Enter Scheme filename: ");
     scanf("%s", fileName);
     getchar();
-    if(access(fileName,R_OK) == 0) {
-        printf("file exists");
+
+    if (access(fileName, R_OK) == 0) {
+        printf("file exists\n");
         fp = fopen(fileName, "r");
-    }else {
-        printf("file not exists. Running default file");
+    } else {
+        printf("file not exists. Running default file\n");
         fp = fopen(FILE_NAME, "r");
     }
 
-
     if (fp == NULL) {
         printf("Failed to open the file.\n");
+        free(fileName);
         return;
     }
 
     char line[256];
     scheme *currentScheme = NULL;
     int rowIndex = 0;
+    int columnHeaderRead = 0;
+
+    printf("Starting to load schemes...\n");
 
     while (fgets(line, sizeof(line), fp) != NULL) {
+        printf("Read line: %s", line);
+
         if (strncmp(line, "Reading table data for scheme:", 30) == 0) {
             if (currentScheme != NULL) {
                 dbs.schemes[dbs.schemeCount++] = currentScheme;
@@ -256,10 +275,14 @@ void loadSchemes() {
             currentScheme->name = strdup(schemeName);
             currentScheme->table = malloc(sizeof(table));
             currentScheme->table->columns = malloc(sizeof(columns));
+            memset(currentScheme->table->columns, 0, sizeof(columns));
             currentScheme->table->rowCount = 0;
             rowIndex = 0;
+            columnHeaderRead = 0;
+            printf("Created new scheme: %s\n", schemeName);
+
         } else if (currentScheme && strstr(line, "|") != NULL) {
-            if (strstr(line, "Column") != NULL) {
+            if (!columnHeaderRead && strstr(line, "name") != NULL) {
                 int colIndex = 0;
                 char *token = strtok(line, "|");
                 while (token != NULL && colIndex < MAX_COLUMNS) {
@@ -267,18 +290,20 @@ void loadSchemes() {
                     token = strtok(NULL, "|");
                     colIndex++;
                 }
-            } else {
+                columnHeaderRead = 1;
+                printf("Column headers loaded\n");
+
+            } else if (columnHeaderRead) {
                 int colIndex = 0;
                 char *token = strtok(line, "|");
                 while (token != NULL && colIndex < MAX_COLUMNS) {
-                    char value[50];
-                    sscanf(token, " %49s", value);
-                    currentScheme->table->columns->contents[colIndex][rowIndex] = strdup(value);
+                    currentScheme->table->columns->contents[colIndex][rowIndex] = strdup(token);
                     token = strtok(NULL, "|");
                     colIndex++;
                 }
                 rowIndex++;
                 currentScheme->table->rowCount++;
+                printf("Row %d loaded\n", rowIndex);
             }
         }
     }
@@ -286,6 +311,8 @@ void loadSchemes() {
     if (currentScheme != NULL) {
         dbs.schemes[dbs.schemeCount++] = currentScheme;
     }
+
+    printf("Finished loading schemes.\n");
     fclose(fp);
     free(fileName);
 }
@@ -294,10 +321,56 @@ void showCurrentSchemes() {
         printf("Scheme: %s\n", dbs.schemes[i]->name);
     }
 }
+void bufferClear() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+void easyDbmsQuery(const char *query) {
+    int columnIdx = -1;
+    char command[10] = {0};
+    char column[50] = {0};
+    char from[10] = {0};
+    char schemeName[50] = {0};
+
+    sscanf(query, "%s %s %s %s", command, column, from, schemeName);
+
+    if (strcmp(command, "select") == 0) {
+        scheme *targetScheme = findScheme(schemeName);
+        if (targetScheme != NULL) {
+            for (int i = 0; i < MAX_COLUMNS; i++) {
+                if (strcmp(targetScheme->table->columns->name[i], column) == 0) {
+                    columnIdx = i;
+                    break;
+                }
+            }
+
+            if (columnIdx == -1) {
+                printf("Column '%s' not found in scheme '%s'.\n", column, schemeName);
+                return;
+            }
+
+            printf("Contents of column '%s' in scheme '%s':\n", column, schemeName);
+            for (int i = 0; i < targetScheme->table->rowCount; i++) {
+                if (targetScheme->table->columns->contents[columnIdx][i] != NULL) {
+                    printf("%s\n", targetScheme->table->columns->contents[columnIdx][i]);
+                }
+            }
+        } else {
+            printf("Scheme '%s' not found.\n", schemeName);
+        }
+    } else {
+        printf("Unsupported command '%s'.\n", command);
+    }
+}
+
+
+
 
 int main(void) {
     int choice;
     char schemeName[50];
+    char query[100];
     FILE *file = fopen(FILE_NAME, "a");
     while (1) {
         showMenu();
@@ -348,6 +421,7 @@ int main(void) {
                 break;
             case 6:
                 freeMemory();
+                free(query);
                 printf("Exiting...\n");
                 fclose(file);
                 return 0;
@@ -358,6 +432,14 @@ int main(void) {
             case 8:
                 showCurrentSchemes();
                 break;
+            case 9:
+                printf("input query:");
+                bufferClear();
+                fgets(query, sizeof(query), stdin);
+                query[strcspn(query, "\n")] = 0;
+                easyDbmsQuery(query);
+                break;
+
 
             default:
                 printf("Invalid option, please try again.\n");
