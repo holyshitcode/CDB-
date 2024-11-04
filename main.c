@@ -230,6 +230,7 @@ void showMenu() {
     printf("| 6. Exit                                        |\n");
     printf("| 7. Load Previous Schemes                       |\n");
     printf("| 8. Show Current Schemes                        |\n");
+    printf("| 9. Input Query                                 |\n");
     printf("+------------------------------------------------+\n");
 }
 
@@ -359,7 +360,15 @@ void easyDbmsQuery(const char *query) {
         } else {
             printf("Scheme '%s' not found.\n", schemeName);
         }
-    } else {
+    }else if(strcmp(command, "delete")) {
+        scheme *targetScheme = findScheme(schemeName);
+        if (targetScheme != NULL) {
+            deleteScheme(schemeName);
+        }else {
+            printf("Delete Scheme Failed\n");
+            printf("Scheme '%s' not found.\n", schemeName);
+        }
+    }else {
         printf("Unsupported command '%s'.\n", command);
     }
 }
