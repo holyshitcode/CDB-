@@ -42,13 +42,13 @@ void readTable(const scheme *s) {
     printf("|                  %s                    |\n", s->name);
     printf("+------------------------------------------------+\n");
 
-    for (int j = 0; j < MAX_COLUMNS && s->table->columns->name[j][0] != '\0'; j++) {
+    for (register int j = 0; j < MAX_COLUMNS && s->table->columns->name[j][0] != '\0'; j++) {
         printf("| %-15s ", s->table->columns->name[j]);
     }
     printf("|\n");
     printf("+------------------------------------------------+\n");
 
-    for (int i = 0; i < s->table->rowCount; i++) {
+    for (register int i = 0; i < s->table->rowCount; i++) {
         printf("| ");
         for (int j = 0; j < MAX_COLUMNS && s->table->columns->contents[j][i] != NULL; j++) {
             printf("%-15s ", s->table->columns->contents[j][i]);
@@ -68,13 +68,13 @@ void writeTable(FILE *fp, const scheme *s) {
     fprintf(fp,"|                  %s                    |\n", s->name);
     fprintf(fp,"+------------------------------------------------+\n");
 
-    for (int j = 0; j < MAX_COLUMNS && s->table->columns->name[j][0] != '\0'; j++) {
+    for (register int j = 0; j < MAX_COLUMNS && s->table->columns->name[j][0] != '\0'; j++) {
         fprintf(fp,"| %-15s ", s->table->columns->name[j]);
     }
     fprintf(fp,"|\n");
     fprintf(fp,"+------------------------------------------------+\n");
 
-    for (int i = 0; i < s->table->rowCount; i++) {
+    for (register int i = 0; i < s->table->rowCount; i++) {
         fprintf(fp,"| ");
         for (int j = 0; j < MAX_COLUMNS && s->table->columns->contents[j][i] != NULL; j++) {
             fprintf(fp,"%-15s ", s->table->columns->contents[j][i]);
@@ -98,7 +98,7 @@ void makeTable(scheme *s) {
     int colCount;
     scanf("%d", &colCount);
 
-    for (int j = 0; j < colCount; j++) {
+    for (register int j = 0; j < colCount; j++) {
         printf("Enter name for column %d: ", j + 1);
         scanf("%s", s->table->columns->name[j]);
     }
@@ -137,7 +137,7 @@ void makeTable(scheme *s) {
         if (j < colCount) {
             printf("Not enough values provided for all columns. Expected %d but got %d.\n", colCount, j);
 
-            for (int k = 0; k < j; k++) {
+            for (register int k = 0; k < j; k++) {
                 free(s->table->columns->contents[k][s->table->rowCount]);
             }
         } else {
@@ -163,7 +163,7 @@ void makeScheme(const char *name) {
 }
 
 scheme *findScheme(const char *name) {
-    for (int i = 0; i < dbs.schemeCount; i++) {
+    for (register int i = 0; i < dbs.schemeCount; i++) {
         if (strcmp(dbs.schemes[i]->name, name) == 0) {
             return dbs.schemes[i];
         }
@@ -172,12 +172,12 @@ scheme *findScheme(const char *name) {
 }
 
 void deleteScheme(char *name) {
-    for (int i = 0; i < dbs.schemeCount; i++) {
+    for (register int i = 0; i < dbs.schemeCount; i++) {
         if (strcmp(dbs.schemes[i]->name, name) == 0) {
             free(dbs.schemes[i]->name);
             if (dbs.schemes[i]->table != NULL) {
-                for (int j = 0; j < dbs.schemes[i]->table->rowCount; j++) {
-                    for (int k = 0; k < MAX_COLUMNS; k++) {
+                for (register int j = 0; j < dbs.schemes[i]->table->rowCount; j++) {
+                    for (register int k = 0; k < MAX_COLUMNS; k++) {
                         if (dbs.schemes[i]->table->columns->contents[k][j] != NULL) {
                             free(dbs.schemes[i]->table->columns->contents[k][j]);
                         }
@@ -188,7 +188,7 @@ void deleteScheme(char *name) {
             }
             free(dbs.schemes[i]);
 
-            for (int j = i; j < dbs.schemeCount - 1; j++) {
+            for (register int j = i; j < dbs.schemeCount - 1; j++) {
                 dbs.schemes[j] = dbs.schemes[j + 1];
             }
             dbs.schemeCount--;
@@ -201,11 +201,11 @@ void deleteScheme(char *name) {
 }
 
 void freeMemory() {
-    for (int i = 0; i < dbs.schemeCount; i++) {
+    for (register int i = 0; i < dbs.schemeCount; i++) {
         free(dbs.schemes[i]->name);
         if (dbs.schemes[i]->table != NULL) {
-            for (int j = 0; j < dbs.schemes[i]->table->rowCount; j++) {
-                for (int k = 0; k < MAX_COLUMNS; k++) {
+            for (register int j = 0; j < dbs.schemes[i]->table->rowCount; j++) {
+                for (register int k = 0; k < MAX_COLUMNS; k++) {
                     if (dbs.schemes[i]->table->columns->contents[k][j] != NULL) {
                         free(dbs.schemes[i]->table->columns->contents[k][j]);
                     }
@@ -318,7 +318,7 @@ void loadSchemes() {
     free(fileName);
 }
 void showCurrentSchemes() {
-    for (int i = 0; i < dbs.schemeCount; i++) {
+    for (register int i = 0; i < dbs.schemeCount; i++) {
         printf("Scheme: %s\n", dbs.schemes[i]->name);
     }
 }
@@ -339,7 +339,7 @@ void easyDbmsQuery(const char *query) {
     if (strcmp(command, "select") == 0) {
         scheme *targetScheme = findScheme(schemeName);
         if (targetScheme != NULL) {
-            for (int i = 0; i < MAX_COLUMNS; i++) {
+            for (register int i = 0; i < MAX_COLUMNS; i++) {
                 if (strcmp(targetScheme->table->columns->name[i], column) == 0) {
                     columnIdx = i;
                     break;
@@ -430,7 +430,6 @@ int main(void) {
                 break;
             case 6:
                 freeMemory();
-                free(query);
                 printf("Exiting...\n");
                 fclose(file);
                 return 0;
