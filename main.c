@@ -360,7 +360,7 @@ void easyDbmsQuery(const char *query) {
         } else {
             printf("Scheme '%s' not found.\n", schemeName);
         }
-    }else if(strcmp(command, "delete")) {
+    }else if(strcmp(command, "delete") == 0) {
         scheme *targetScheme = findScheme(schemeName);
         if (targetScheme != NULL) {
             deleteScheme(schemeName);
